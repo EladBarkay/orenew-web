@@ -33,32 +33,32 @@ export const en = {
     items: [
       {
         title: "Automatic orientation detection",
-        icon: "lens",
+        icon: "orientation",
         body: "Every photo is sorted into landscape or portrait for you, so the right frame is applied without sorting by hand — and a one-click override is there for the shots you want to flip.",
       },
       {
         title: "Copies, not duplicate files",
-        icon: "bDepth",
+        icon: "copies",
         body: "Set how many prints each photo needs as a number on the photo — no cluttering your disk with copy-1, copy-2 files. Orenew even suggests a copy count from the number of faces it sees.",
       },
       {
         title: "Remembers what you exported",
-        icon: "lensFlat",
+        icon: "remembered",
         body: "Orenew tracks how many copies of each photo you've already exported, so re-running a batch never doubles up a print or leaves a guest short.",
       },
       {
         title: "Many batches at once",
-        icon: "aDepth",
+        icon: "batches",
         body: "Open and process several events side by side. No closing one job to start the next — keep every print table moving in parallel.",
       },
       {
         title: "Insanely fast exports",
-        icon: "lens",
+        icon: "fast",
         body: "A native crop/resize pipeline on a bounded thread pool turns a full card into print-ready sheets in seconds, without choking your laptop.",
       },
       {
         title: "Real-time folder watching",
-        icon: "lensFlat",
+        icon: "watch",
         body: "New photos dropped into the folder appear instantly — even while you're previewing a photo in the lightbox — so the line never waits on a re-import.",
       },
     ],

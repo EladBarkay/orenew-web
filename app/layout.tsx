@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Script from "next/script";
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 import { dictionary as t } from "@/dictionaries/en";
 
@@ -38,6 +40,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body className="min-h-screen antialiased">
         {children}
+        <Analytics />
+        <SpeedInsights />
         {userwayAccount && (
           <Script
             src="https://cdn.userway.org/widget.js"

@@ -84,6 +84,7 @@ export const en = {
     perYear: "/yr",
     billedYearly: "billed yearly",
     mostPopular: "Most popular",
+    yourPlan: "Your plan",
     seatsOne: "1 device seat",
     seatsOther: "{count} device seats",
     seatsUncapped: "Unlimited devices",

@@ -68,15 +68,23 @@ export function PricingTable({ currentTier }: { currentTier?: Tier }) {
               key={tier}
               className={cn(
                 "relative flex flex-col rounded-2xl border p-6",
-                featured
-                  ? "border-accent/60 bg-accent/[0.06] shadow-glow"
-                  : "border-white/10 bg-white/[0.02]",
+                isCurrent
+                  ? "border-emerald-400/70 bg-emerald-400/[0.06] ring-1 ring-emerald-400/40"
+                  : featured
+                    ? "border-accent/60 bg-accent/[0.06] shadow-glow"
+                    : "border-white/10 bg-white/[0.02]",
               )}
             >
-              {featured && (
-                <span className="absolute -top-3 start-1/2 -translate-x-1/2 rounded-full bg-accent px-3 py-1 text-xs font-semibold text-accent-fg">
-                  {t.pricing.mostPopular}
+              {isCurrent ? (
+                <span className="absolute -top-3 start-1/2 -translate-x-1/2 rounded-full bg-emerald-400 px-3 py-1 text-xs font-semibold text-emerald-950">
+                  {t.pricing.yourPlan}
                 </span>
+              ) : (
+                featured && (
+                  <span className="absolute -top-3 start-1/2 -translate-x-1/2 rounded-full bg-accent px-3 py-1 text-xs font-semibold text-accent-fg">
+                    {t.pricing.mostPopular}
+                  </span>
+                )
               )}
 
               <h3 className="text-lg font-semibold text-white">{copy.name}</h3>

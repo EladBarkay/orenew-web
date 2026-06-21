@@ -15,6 +15,7 @@ export const en = {
     faq: "FAQ",
     signIn: "Sign in",
     account: "My account",
+    greeting: "Hello, {name}",
   },
   hero: {
     eyebrow: "Desktop app for event photographers",

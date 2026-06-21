@@ -1,8 +1,14 @@
 import Link from "next/link";
 import { Logo } from "@/components/Logo";
+import { createClient } from "@/lib/supabase/server";
 import { dictionary as t } from "@/dictionaries/en";
 
-export function Footer() {
+export async function Footer() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
   const cols = [
     {
       title: t.footer.product,
@@ -15,10 +21,14 @@ export function Footer() {
     },
     {
       title: t.footer.company,
-      links: [
-        { href: "/account", label: t.nav.account },
-        { href: "/sign-in", label: t.nav.signIn },
-      ],
+      // Signed-in users reach their account via the account link; only show the
+      // sign-in entry to signed-out visitors.
+      links: user
+        ? [{ href: "/account", label: t.nav.account }]
+        : [
+            { href: "/account", label: t.nav.account },
+            { href: "/sign-in", label: t.nav.signIn },
+          ],
     },
     {
       title: t.footer.legal,

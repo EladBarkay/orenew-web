@@ -34,9 +34,17 @@ export async function Header() {
         </nav>
         <div className="flex items-center gap-2">
           {user ? (
-            <CTALink href="/account" variant="secondary">
-              {t.nav.account}
-            </CTALink>
+            <>
+              <span className="hidden text-sm text-neutral-300 sm:inline">
+                {t.nav.greeting.replace(
+                  "{name}",
+                  (user.user_metadata?.name as string | undefined) ?? user.email ?? "",
+                )}
+              </span>
+              <CTALink href="/account" variant="secondary">
+                {t.nav.account}
+              </CTALink>
+            </>
           ) : (
             <CTALink href="/sign-in" variant="ghost">
               {t.nav.signIn}

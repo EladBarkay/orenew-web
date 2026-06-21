@@ -53,7 +53,7 @@ export default function HomePage() {
         </div>
         <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {t.features.items.map((f) => (
-            <FeatureCard key={f.title} title={f.title} body={f.body} />
+            <FeatureCard key={f.title} title={f.title} body={f.body} icon={f.icon} />
           ))}
         </div>
       </section>
@@ -71,28 +71,9 @@ export default function HomePage() {
             <Screenshot title={t.showcase.lightbox} className="lg:col-span-2">
               <LightboxMockup />
             </Screenshot>
-            <Screenshot title={t.showcase.gallery}>
-              <GalleryMockup />
-            </Screenshot>
-            <Screenshot title={t.showcase.export}>
+            <Screenshot title={t.showcase.export} className="lg:col-span-2">
               <ExportMockup />
             </Screenshot>
-          </div>
-
-          {/* Demo video slot */}
-          <div className="mx-auto mt-10 max-w-4xl">
-            <div className="relative flex aspect-video items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-neutral-900">
-              <div className="bg-aurora absolute inset-0 opacity-60" />
-              <div className="relative text-center">
-                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-accent text-accent-fg shadow-glow">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                    <path d="M8 5v14l11-7z" />
-                  </svg>
-                </div>
-                <h3 className="mt-4 text-lg font-semibold text-white">{t.showcase.videoTitle}</h3>
-                <p className="mt-1 text-sm text-neutral-400">{t.showcase.videoBody}</p>
-              </div>
-            </div>
           </div>
         </div>
       </section>

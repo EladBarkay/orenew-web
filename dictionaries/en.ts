@@ -27,33 +27,39 @@ export const en = {
     note: "Free forever with watermarked output. No credit card required.",
   },
   features: {
-    title: "Built for the print table, not the darkroom",
+    title: "What you won't find in the other tools",
     subtitle:
-      "Orenew does one job extremely well: turn a card full of photos into finished, framed output while the line is still moving.",
+      "Most batch framers stop at \"apply a border.\" Orenew is built for the live print table — the parts that actually slow you down at the event are the parts we automated.",
     items: [
       {
-        title: "Batch framing",
-        body: "Apply per-event landscape and portrait frame PNGs to an entire batch at once, with centered, aspect-correct crops — never stretched.",
+        title: "Automatic orientation detection",
+        icon: "lens",
+        body: "Every photo is sorted into landscape or portrait for you, so the right frame is applied without sorting by hand — and a one-click override is there for the shots you want to flip.",
       },
       {
-        title: "Print & magnet canvases",
-        body: "Tile framed photos onto your own canvas presets — 2-up prints, magnet sheets, custom DPI — and export print-ready JPEGs at 300 DPI.",
+        title: "Copies, not duplicate files",
+        icon: "bDepth",
+        body: "Set how many prints each photo needs as a number on the photo — no cluttering your disk with copy-1, copy-2 files. Orenew even suggests a copy count from the number of faces it sees.",
       },
       {
-        title: "Read-only source",
-        body: "Your photographer's folder is never modified. All state lives in Orenew's own store, so a re-import always resumes where you left off.",
+        title: "Remembers what you exported",
+        icon: "lensFlat",
+        body: "Orenew tracks how many copies of each photo you've already exported, so re-running a batch never doubles up a print or leaves a guest short.",
       },
       {
-        title: "Fast by design",
-        body: "Rust + SIMD crop/resize on a bounded thread pool. 100 photos in seconds, with a memory ceiling that won't choke your laptop.",
+        title: "Many batches at once",
+        icon: "aDepth",
+        body: "Open and process several events side by side. No closing one job to start the next — keep every print table moving in parallel.",
       },
       {
-        title: "Live folder watching",
-        body: "Drop new photos mid-event and they appear automatically. Edit a frame PNG and previews refresh instantly.",
+        title: "Insanely fast exports",
+        icon: "lens",
+        body: "A native crop/resize pipeline on a bounded thread pool turns a full card into print-ready sheets in seconds, without choking your laptop.",
       },
       {
-        title: "Per-photo control",
-        body: "Override orientation, set copies, and review every frame in a full-screen lightbox before you commit a single print.",
+        title: "Real-time folder watching",
+        icon: "lensFlat",
+        body: "New photos dropped into the folder appear instantly — even while you're previewing a photo in the lightbox — so the line never waits on a re-import.",
       },
     ],
   },
@@ -64,9 +70,6 @@ export const en = {
     gallery: "Gallery",
     lightbox: "Lightbox preview",
     export: "Export dialog",
-    videoTitle: "Watch a 90-second walkthrough",
-    videoBody: "See a real event go from SD card to print sheet.",
-    videoCta: "Play demo",
   },
   beforeAfter: {
     title: "Before & after",

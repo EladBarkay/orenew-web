@@ -6,7 +6,7 @@ export function Logo({ withWordmark = true }: { withWordmark?: boolean }) {
   return (
     <Link href="/" className="group inline-flex items-center gap-2.5">
       <Image
-        src="/orenew.svg"
+        src="/orenew-detailed.svg"
         alt={t.brand.name}
         width={28}
         height={28}

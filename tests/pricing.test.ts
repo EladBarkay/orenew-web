@@ -7,6 +7,7 @@ import {
   buildVariantMap,
   tierForVariant,
   resolveEntitlementTier,
+  effectiveTier,
 } from "@/lib/pricing";
 
 describe("pricing model", () => {
@@ -68,5 +69,26 @@ describe("resolveEntitlementTier", () => {
   it("drops to free once expired or unpaid", () => {
     expect(resolveEntitlementTier("expired", "pro")).toBe("free");
     expect(resolveEntitlementTier("unpaid", "studio")).toBe("free");
+  });
+});
+
+describe("effectiveTier", () => {
+  const now = new Date("2026-06-21T00:00:00Z");
+
+  it("reads free for a missing row or empty tier", () => {
+    expect(effectiveTier(null, now)).toBe("free");
+    expect(effectiveTier(undefined, now)).toBe("free");
+    expect(effectiveTier({ tier: null }, now)).toBe("free");
+  });
+
+  it("returns the stored tier when not expired", () => {
+    expect(effectiveTier({ tier: "pro" }, now)).toBe("pro");
+    expect(effectiveTier({ tier: "studio", expires_at: "2026-07-01T00:00:00Z" }, now)).toBe(
+      "studio",
+    );
+  });
+
+  it("drops to free once expires_at is in the past", () => {
+    expect(effectiveTier({ tier: "pro", expires_at: "2026-06-01T00:00:00Z" }, now)).toBe("free");
   });
 });

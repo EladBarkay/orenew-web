@@ -75,6 +75,21 @@ export function tierForVariant(
   return buildVariantMap(env).get(String(variantId)) ?? null;
 }
 
+/**
+ * Resolve the tier to *display* from an `entitlements` row. Both `/account` and
+ * `/pricing` read the same row, so they must resolve it identically — otherwise one
+ * page can show Free while the other implies a paid plan. Applies the `expires_at`
+ * grace: a row past its expiry reads as Free even if `tier` still says otherwise.
+ */
+export function effectiveTier(
+  ent: { tier?: string | null; expires_at?: string | null } | null | undefined,
+  now: Date = new Date(),
+): Tier {
+  if (!ent?.tier) return "free";
+  if (ent.expires_at && new Date(ent.expires_at) < now) return "free";
+  return ent.tier as Tier;
+}
+
 /** Lemon Squeezy subscription statuses that should grant the paid tier. */
 const ACTIVE_STATUSES = new Set(["active", "on_trial", "past_due", "cancelled"]);
 

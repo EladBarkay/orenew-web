@@ -5,7 +5,7 @@ import { SiteShell } from "@/components/SiteShell";
 import { ManageBillingButton, SignOutButton } from "@/components/AccountActions";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, titleCase } from "@/lib/format";
-import { PLANS, type Tier } from "@/lib/pricing";
+import { PLANS, effectiveTier } from "@/lib/pricing";
 import { dictionary as t } from "@/dictionaries/en";
 
 export const metadata: Metadata = { title: t.account.title };
@@ -29,7 +29,7 @@ export default async function AccountPage() {
     supabase.from("entitlement_devices").select("*", { count: "exact", head: true }).eq("user_id", user.id),
   ]);
 
-  const tier = (ent?.tier as Tier) ?? "free";
+  const tier = effectiveTier(ent);
   const plan = PLANS[tier];
   const seats = plan.seats;
   const used = deviceCount ?? 0;

@@ -88,6 +88,7 @@ export const en = {
     perYear: "/yr",
     billedYearly: "billed yearly",
     mostPopular: "Most popular",
+    trialNote: "14-day free trial · card required · cancel anytime",
     yourPlan: "Your plan",
     seatsOne: "1 device seat",
     seatsOther: "{count} device seats",
@@ -108,7 +109,7 @@ export const en = {
       pro: {
         name: "Pro",
         tagline: "For the solo event photographer.",
-        cta: "Get Pro",
+        cta: "Start free trial",
         features: [
           "Everything in Free",
           "No watermark",

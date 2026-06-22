@@ -68,6 +68,15 @@ describe("planMutation", () => {
     });
   });
 
+  it("grants Pro with no expiry during a trial", () => {
+    // on_trial: full paid access, no expires_at — LS will send the convert/cancel
+    // event later to flip it. This is the 14-day-trial money path.
+    const plan = planMutation(event({ variant: 111, status: "on_trial" }), { env, now: NOW });
+    expect(plan.entitlement.tier).toBe("pro");
+    expect(plan.entitlement.expires_at).toBeNull();
+    expect(plan.subscription.status).toBe("on_trial");
+  });
+
   it("keeps tier but sets grace expiry on cancel", () => {
     const plan = planMutation(
       event({ eventName: "subscription_cancelled", status: "cancelled", ends_at: "2026-07-01T00:00:00Z" }),

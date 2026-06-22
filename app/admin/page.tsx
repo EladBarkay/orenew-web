@@ -19,7 +19,13 @@ interface CustomerRow {
   renewal: string | null;
 }
 
-export default async function AdminPage() {
+const PAGE_SIZE = 50;
+
+export default async function AdminPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -44,48 +50,33 @@ export default async function AdminPage() {
     );
   }
 
-  // Admin confirmed — aggregate with the service client (server-only).
+  // Admin confirmed. The joins, seat/subscription counts, latest subscription, email,
+  // and sort key are all done by the public.admin_customers SQL view, so we fetch one
+  // ordered page plus the total count in a single round trip (service client,
+  // server-only — the view is revoked from anon/authenticated).
+  const sp = await searchParams;
+  const page = Math.max(1, Number(sp?.page) || 1);
+  const fromRow = (page - 1) * PAGE_SIZE;
+
   const db = createServiceClient();
-  const [{ data: ents }, { data: subs }, { data: devices }, usersRes] = await Promise.all([
-    db.from("entitlements").select("user_id, tier, expires_at"),
-    db.from("billing_subscriptions").select("user_id, status, current_period_end, updated_at"),
-    db.from("entitlement_devices").select("user_id"),
-    db.auth.admin.listUsers({ page: 1, perPage: 1000 }),
-  ]);
+  const { data, count } = await db
+    .from("admin_customers")
+    .select("user_id, email, tier, status, seats, subscriptions, renewal", { count: "exact" })
+    .order("tier_rank")
+    .order("email")
+    .range(fromRow, fromRow + PAGE_SIZE - 1);
 
-  const emailById = new Map<string, string>();
-  for (const u of usersRes.data?.users ?? []) emailById.set(u.id, u.email ?? "—");
-
-  const seatById = new Map<string, number>();
-  for (const d of devices ?? []) seatById.set(d.user_id, (seatById.get(d.user_id) ?? 0) + 1);
-
-  // Latest subscription per user, plus a lifetime subscription count (a count > 1 is
-  // the repeat-trial / re-subscribe signal — order-independent, so it's reliable).
-  const subById = new Map<string, { status: string; current_period_end: string | null }>();
-  const subCountById = new Map<string, number>();
-  for (const s of subs ?? []) {
-    const prev = subById.get(s.user_id);
-    if (!prev) subById.set(s.user_id, { status: s.status, current_period_end: s.current_period_end });
-    subCountById.set(s.user_id, (subCountById.get(s.user_id) ?? 0) + 1);
-  }
-
-  const rows: CustomerRow[] = (ents ?? [])
-    .map((e) => {
-      const sub = subById.get(e.user_id);
-      return {
-        userId: e.user_id,
-        email: emailById.get(e.user_id) ?? "—",
-        tier: e.tier,
-        status: sub?.status ?? (e.tier === "free" ? "free" : "active"),
-        seats: seatById.get(e.user_id) ?? 0,
-        subscriptions: subCountById.get(e.user_id) ?? 0,
-        renewal: sub?.current_period_end ?? e.expires_at ?? null,
-      };
-    })
-    .sort((a, b) => {
-      const rank = (x: string) => (x === "studio" ? 0 : x === "pro" ? 1 : 2);
-      return rank(a.tier) - rank(b.tier) || a.email.localeCompare(b.email);
-    });
+  const total = count ?? 0;
+  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const rows: CustomerRow[] = (data ?? []).map((r) => ({
+    userId: r.user_id,
+    email: r.email ?? "—",
+    tier: r.tier,
+    status: r.status,
+    seats: r.seats,
+    subscriptions: r.subscriptions,
+    renewal: r.renewal,
+  }));
 
   return (
     <SiteShell>
@@ -93,7 +84,7 @@ export default async function AdminPage() {
         <h1 className="text-3xl font-bold tracking-tight text-white">{t.admin.title}</h1>
         <p className="mt-1 text-sm text-neutral-400">{t.admin.subtitle}</p>
         <p className="mt-1 text-xs text-neutral-500">
-          {t.admin.totalCustomers.replace("{count}", String(rows.length))}
+          {t.admin.totalCustomers.replace("{count}", String(total))}
         </p>
 
         <div className="mt-8 overflow-x-auto rounded-2xl border border-white/10">
@@ -134,8 +125,40 @@ export default async function AdminPage() {
             </tbody>
           </table>
         </div>
+
+        {total > PAGE_SIZE && (
+          <div className="mt-4 flex items-center justify-between text-sm text-neutral-400">
+            <span>
+              {t.admin.pageOf
+                .replace("{page}", String(page))
+                .replace("{pages}", String(pageCount))}
+            </span>
+            <div className="flex gap-2">
+              <PageLink page={page - 1} disabled={page <= 1} label={t.admin.prev} />
+              <PageLink page={page + 1} disabled={page >= pageCount} label={t.admin.next} />
+            </div>
+          </div>
+        )}
       </section>
     </SiteShell>
+  );
+}
+
+function PageLink({ page, disabled, label }: { page: number; disabled: boolean; label: string }) {
+  if (disabled) {
+    return (
+      <span className="rounded-md border border-white/10 px-3 py-1.5 text-neutral-600">
+        {label}
+      </span>
+    );
+  }
+  return (
+    <a
+      href={`/admin?page=${page}`}
+      className="rounded-md border border-white/15 px-3 py-1.5 text-neutral-200 hover:bg-white/[0.04]"
+    >
+      {label}
+    </a>
   );
 }
 

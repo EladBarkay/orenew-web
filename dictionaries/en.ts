@@ -392,6 +392,9 @@ export const en = {
     colRenewal: "Renewal",
     noCustomers: "No customers yet.",
     totalCustomers: "{count} customers",
+    prev: "Previous",
+    next: "Next",
+    pageOf: "Page {page} of {pages}",
   },
   common: {
     loading: "Loading…",

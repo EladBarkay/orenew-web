@@ -15,6 +15,7 @@ interface CustomerRow {
   tier: string;
   status: string;
   seats: number;
+  subscriptions: number;
   renewal: string | null;
 }
 
@@ -58,11 +59,14 @@ export default async function AdminPage() {
   const seatById = new Map<string, number>();
   for (const d of devices ?? []) seatById.set(d.user_id, (seatById.get(d.user_id) ?? 0) + 1);
 
-  // Latest subscription per user.
+  // Latest subscription per user, plus a lifetime subscription count (a count > 1 is
+  // the repeat-trial / re-subscribe signal — order-independent, so it's reliable).
   const subById = new Map<string, { status: string; current_period_end: string | null }>();
+  const subCountById = new Map<string, number>();
   for (const s of subs ?? []) {
     const prev = subById.get(s.user_id);
     if (!prev) subById.set(s.user_id, { status: s.status, current_period_end: s.current_period_end });
+    subCountById.set(s.user_id, (subCountById.get(s.user_id) ?? 0) + 1);
   }
 
   const rows: CustomerRow[] = (ents ?? [])
@@ -74,6 +78,7 @@ export default async function AdminPage() {
         tier: e.tier,
         status: sub?.status ?? (e.tier === "free" ? "free" : "active"),
         seats: seatById.get(e.user_id) ?? 0,
+        subscriptions: subCountById.get(e.user_id) ?? 0,
         renewal: sub?.current_period_end ?? e.expires_at ?? null,
       };
     })
@@ -99,13 +104,14 @@ export default async function AdminPage() {
                 <th className="px-4 py-3 text-start font-medium">{t.admin.colTier}</th>
                 <th className="px-4 py-3 text-start font-medium">{t.admin.colStatus}</th>
                 <th className="px-4 py-3 text-start font-medium">{t.admin.colSeats}</th>
+                <th className="px-4 py-3 text-start font-medium">{t.admin.colSubs}</th>
                 <th className="px-4 py-3 text-start font-medium">{t.admin.colRenewal}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
               {rows.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-neutral-500">
+                  <td colSpan={6} className="px-4 py-8 text-center text-neutral-500">
                     {t.admin.noCustomers}
                   </td>
                 </tr>
@@ -118,6 +124,9 @@ export default async function AdminPage() {
                     </td>
                     <td className="px-4 py-3 text-neutral-400">{titleCase(r.status)}</td>
                     <td className="px-4 py-3 text-neutral-400">{r.seats}</td>
+                    <td className={`px-4 py-3 ${r.subscriptions > 1 ? "font-semibold text-amber-400" : "text-neutral-400"}`}>
+                      {r.subscriptions}
+                    </td>
                     <td className="px-4 py-3 text-neutral-400">{formatDate(r.renewal)}</td>
                   </tr>
                 ))

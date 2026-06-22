@@ -388,6 +388,7 @@ export const en = {
     colTier: "Tier",
     colStatus: "Status",
     colSeats: "Seats",
+    colSubs: "Subs",
     colRenewal: "Renewal",
     noCustomers: "No customers yet.",
     totalCustomers: "{count} customers",

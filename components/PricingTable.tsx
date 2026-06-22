@@ -129,6 +129,10 @@ export function PricingTable({ currentTier }: { currentTier?: Tier }) {
                 )}
               </div>
 
+              {tier === "pro" && !isCurrent && (
+                <p className="mt-2 text-center text-xs text-neutral-500">{t.pricing.trialNote}</p>
+              )}
+
               <p className="mt-4 text-sm font-medium text-neutral-300">{seatLabel(plan.seats)}</p>
               <ul className="mt-3 space-y-2.5">
                 {copy.features.map((f) => (

@@ -71,14 +71,77 @@ export async function createCheckoutUrl(args: CreateCheckoutArgs): Promise<strin
   return url as string;
 }
 
-/** Fetch the hosted customer-portal URL for an existing subscription. */
-export async function getCustomerPortalUrl(subscriptionId: string): Promise<string | null> {
-  const res = await fetch(`${API}/subscriptions/${subscriptionId}`, {
-    headers: headers(),
+function storeId(): string {
+  const id = process.env.LEMONSQUEEZY_STORE_ID;
+  if (!id) throw new Error("LEMONSQUEEZY_STORE_ID is not set");
+  return id;
+}
+
+/** A subscription as we consume it for display (normalized from the LS object). */
+export interface LsSubscription {
+  id: string;
+  userEmail: string;
+  status: string; // active | cancelled | expired | past_due | unpaid | on_trial
+  periodEnd: string | null; // ends_at (on cancel) ?? renews_at, as a YYYY-MM-DD date
+  createdAt: string; // ISO, used to pick the latest subscription per user
+  portalUrl: string | null;
+}
+
+interface LsSubscriptionData {
+  id: string;
+  attributes: {
+    user_email?: string;
+    status: string;
+    renews_at?: string | null;
+    ends_at?: string | null;
+    created_at?: string;
+    urls?: { customer_portal?: string };
+  };
+}
+
+function normalizeSubscription(d: LsSubscriptionData): LsSubscription {
+  const a = d.attributes;
+  return {
+    id: String(d.id),
+    userEmail: a.user_email ?? "",
+    status: a.status,
+    periodEnd: periodEndDate(a as LsWebhookEvent["data"]["attributes"]),
+    createdAt: a.created_at ?? "",
+    portalUrl: a.urls?.customer_portal ?? null,
+  };
+}
+
+/** Most-recent subscription for an email (or null). Source of truth for /account, /portal. */
+export async function getLatestSubscriptionByEmail(
+  email: string,
+): Promise<LsSubscription | null> {
+  const params = new URLSearchParams({
+    "filter[store_id]": storeId(),
+    "filter[user_email]": email,
   });
+  const res = await fetch(`${API}/subscriptions?${params}`, { headers: headers() });
   if (!res.ok) return null;
   const json = await res.json();
-  return json?.data?.attributes?.urls?.customer_portal ?? null;
+  const rows: LsSubscriptionData[] = json?.data ?? [];
+  if (rows.length === 0) return null;
+  return rows
+    .map(normalizeSubscription)
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+}
+
+/** Every subscription in the store (all statuses), following pagination. For /admin. */
+export async function listStoreSubscriptions(): Promise<LsSubscription[]> {
+  const out: LsSubscription[] = [];
+  let url: string | null =
+    `${API}/subscriptions?${new URLSearchParams({ "filter[store_id]": storeId(), "page[size]": "100" })}`;
+  while (url) {
+    const res: Response = await fetch(url, { headers: headers() });
+    if (!res.ok) throw new Error(`LS list subscriptions failed: ${res.status}`);
+    const json = await res.json();
+    for (const d of (json?.data ?? []) as LsSubscriptionData[]) out.push(normalizeSubscription(d));
+    url = json?.links?.next ?? null;
+  }
+  return out;
 }
 
 /**

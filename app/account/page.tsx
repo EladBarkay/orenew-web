@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { SiteShell } from "@/components/SiteShell";
 import { ManageBillingButton, SignOutButton } from "@/components/AccountActions";
 import { createClient } from "@/lib/supabase/server";
+import { getLatestSubscriptionByEmail } from "@/lib/lemonsqueezy";
 import { formatDate, titleCase } from "@/lib/format";
 import { PLANS, effectiveTier } from "@/lib/pricing";
 import { dictionary as t } from "@/dictionaries/en";
@@ -17,17 +18,14 @@ export default async function AccountPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/sign-in?redirect=/account");
 
-  const [{ data: ent }, { data: sub }, { count: deviceCount }] = await Promise.all([
+  const [{ data: ent }, { count: deviceCount }] = await Promise.all([
     supabase.from("entitlements").select("tier, expires_at, is_admin").eq("user_id", user.id).maybeSingle(),
-    supabase
-      .from("billing_subscriptions")
-      .select("status, current_period_end")
-      .eq("user_id", user.id)
-      .order("updated_at", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
     supabase.from("entitlement_devices").select("*", { count: "exact", head: true }).eq("user_id", user.id),
   ]);
+
+  // Subscription status/renewal comes live from LS. If LS is unreachable, degrade to
+  // showing just the tier (from entitlements) and hide the renewal line.
+  const sub = user.email ? await getLatestSubscriptionByEmail(user.email).catch(() => null) : null;
 
   const tier = effectiveTier(ent);
   const plan = PLANS[tier];
@@ -38,10 +36,10 @@ export default async function AccountPage() {
 
   const renewalLine = (() => {
     if (tier === "free") return t.account.noSub;
-    if (cancelled && sub?.current_period_end)
-      return t.account.cancelsOn.replace("{date}", formatDate(sub.current_period_end));
-    if (sub?.current_period_end)
-      return t.account.renews.replace("{date}", formatDate(sub.current_period_end));
+    if (cancelled && sub?.periodEnd)
+      return t.account.cancelsOn.replace("{date}", formatDate(sub.periodEnd));
+    if (sub?.periodEnd)
+      return t.account.renews.replace("{date}", formatDate(sub.periodEnd));
     return "";
   })();
 

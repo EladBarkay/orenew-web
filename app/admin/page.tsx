@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { SiteShell } from "@/components/SiteShell";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { listStoreSubscriptions } from "@/lib/lemonsqueezy";
 import { formatDate, titleCase } from "@/lib/format";
 import { dictionary as t } from "@/dictionaries/en";
 
@@ -44,29 +45,37 @@ export default async function AdminPage() {
     );
   }
 
-  // Admin confirmed — aggregate with the service client (server-only).
+  // Admin confirmed — aggregate with the service client (server-only). Subscription
+  // state comes live from LS (source of truth); we match it to users by email.
   const db = createServiceClient();
-  const [{ data: ents }, { data: subs }, { data: devices }, usersRes] = await Promise.all([
+  const [{ data: ents }, { data: devices }, usersRes, subs] = await Promise.all([
     db.from("entitlements").select("user_id, tier, expires_at"),
-    db.from("billing_subscriptions").select("user_id, status, current_period_end, updated_at"),
     db.from("entitlement_devices").select("user_id"),
     db.auth.admin.listUsers({ page: 1, perPage: 1000 }),
+    listStoreSubscriptions(),
   ]);
 
   const emailById = new Map<string, string>();
-  for (const u of usersRes.data?.users ?? []) emailById.set(u.id, u.email ?? "—");
+  const idByEmail = new Map<string, string>();
+  for (const u of usersRes.data?.users ?? []) {
+    emailById.set(u.id, u.email ?? "—");
+    if (u.email) idByEmail.set(u.email.toLowerCase(), u.id);
+  }
 
   const seatById = new Map<string, number>();
   for (const d of devices ?? []) seatById.set(d.user_id, (seatById.get(d.user_id) ?? 0) + 1);
 
   // Latest subscription per user, plus a lifetime subscription count (a count > 1 is
-  // the repeat-trial / re-subscribe signal — order-independent, so it's reliable).
-  const subById = new Map<string, { status: string; current_period_end: string | null }>();
+  // the repeat-trial / re-subscribe signal). LS rows are matched to users by email.
+  const subById = new Map<string, { status: string; periodEnd: string | null; createdAt: string }>();
   const subCountById = new Map<string, number>();
-  for (const s of subs ?? []) {
-    const prev = subById.get(s.user_id);
-    if (!prev) subById.set(s.user_id, { status: s.status, current_period_end: s.current_period_end });
-    subCountById.set(s.user_id, (subCountById.get(s.user_id) ?? 0) + 1);
+  for (const s of subs) {
+    const userId = idByEmail.get(s.userEmail.toLowerCase());
+    if (!userId) continue;
+    const prev = subById.get(userId);
+    if (!prev || s.createdAt > prev.createdAt)
+      subById.set(userId, { status: s.status, periodEnd: s.periodEnd, createdAt: s.createdAt });
+    subCountById.set(userId, (subCountById.get(userId) ?? 0) + 1);
   }
 
   const rows: CustomerRow[] = (ents ?? [])
@@ -79,7 +88,7 @@ export default async function AdminPage() {
         status: sub?.status ?? (e.tier === "free" ? "free" : "active"),
         seats: seatById.get(e.user_id) ?? 0,
         subscriptions: subCountById.get(e.user_id) ?? 0,
-        renewal: sub?.current_period_end ?? e.expires_at ?? null,
+        renewal: sub?.periodEnd ?? e.expires_at ?? null,
       };
     })
     .sort((a, b) => {

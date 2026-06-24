@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { SiteShell } from "@/components/SiteShell";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
-import { listStoreSubscriptions } from "@/lib/lemonsqueezy";
+import { listStoreSubscriptions, periodEndDate } from "@/lib/lemonsqueezy";
 import { formatDate, titleCase } from "@/lib/format";
 import { dictionary as t } from "@/dictionaries/en";
 
@@ -52,6 +52,7 @@ export default async function AdminPage() {
     db.from("entitlements").select("user_id, tier, expires_at"),
     db.from("entitlement_devices").select("user_id"),
     db.auth.admin.listUsers({ page: 1, perPage: 1000 }),
+    // ponytail: full store fetch + JS join; build a paged admin view when subs grow large.
     listStoreSubscriptions(),
   ]);
 
@@ -70,11 +71,13 @@ export default async function AdminPage() {
   const subById = new Map<string, { status: string; periodEnd: string | null; createdAt: string }>();
   const subCountById = new Map<string, number>();
   for (const s of subs) {
-    const userId = idByEmail.get(s.userEmail.toLowerCase());
+    const a = s.attributes;
+    const userId = idByEmail.get(a.user_email.toLowerCase());
     if (!userId) continue;
+    const createdAt = a.created_at;
     const prev = subById.get(userId);
-    if (!prev || s.createdAt > prev.createdAt)
-      subById.set(userId, { status: s.status, periodEnd: s.periodEnd, createdAt: s.createdAt });
+    if (!prev || createdAt > prev.createdAt)
+      subById.set(userId, { status: a.status, periodEnd: periodEndDate(a), createdAt });
     subCountById.set(userId, (subCountById.get(userId) ?? 0) + 1);
   }
 

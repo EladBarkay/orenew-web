@@ -4,7 +4,7 @@ import { PricingTable } from "@/components/PricingTable";
 import { FAQ } from "@/components/FAQ";
 import { createClient } from "@/lib/supabase/server";
 import { dictionary as t } from "@/dictionaries/en";
-import { effectiveTier, type Tier } from "@/lib/pricing";
+import { type Tier } from "@/lib/pricing";
 
 export const metadata: Metadata = { title: t.nav.pricing };
 
@@ -17,11 +17,11 @@ export default async function PricingPage() {
   let currentTier: Tier | undefined;
   if (user) {
     const { data } = await supabase
-      .from("entitlements")
-      .select("tier, expires_at")
+      .from("account_overview")
+      .select("effective_tier")
       .eq("user_id", user.id)
       .maybeSingle();
-    currentTier = effectiveTier(data);
+    currentTier = (data?.effective_tier ?? "free") as Tier;
   }
 
   return (

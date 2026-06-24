@@ -22,8 +22,9 @@ export async function GET() {
   if (!sub) {
     return NextResponse.json({ error: "no subscription" }, { status: 404 });
   }
-  if (!sub.portalUrl) {
+  const portalUrl = sub.attributes.urls.customer_portal;
+  if (!portalUrl) {
     return NextResponse.json({ error: "portal unavailable" }, { status: 502 });
   }
-  return NextResponse.json({ url: sub.portalUrl });
+  return NextResponse.json({ url: portalUrl });
 }

@@ -40,8 +40,9 @@ execute it.** The split exists so the money path is unit-testable without a DB. 
 - `lib/pricing.ts` — single source of truth for plans, seat limits, and the
   tier↔LS-variant mapping. `PLANS`, `tierForVariant`, `resolveEntitlementTier`.
 - `lib/billing.ts` — pure `planMutation(event)` → the rows to write. No DB calls.
-- `lib/lemonsqueezy.ts` — thin LS JSON:API wrapper (no SDK): create checkout, portal
-  URL, `verifyWebhookSignature` (HMAC-SHA256, constant-time).
+- `lib/lemonsqueezy.ts` — LS access via the official SDK (`@lemonsqueezy/lemonsqueezy.js`):
+  create checkout, read subscriptions. Plus two helpers the SDK lacks:
+  `verifyWebhookSignature` (HMAC-SHA256, constant-time) and `periodEndDate`.
 - `lib/os-detect.ts` — pure UA→OS + GitHub-release asset picker for /download.
 - `lib/supabase/` — `client` (browser), `server` (RLS, request cookies), `middleware`
   (session refresh + route gating), `service` (**service-role, bypasses RLS, server-only**).

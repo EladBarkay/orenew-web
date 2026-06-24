@@ -1,34 +1,13 @@
-// Single source of truth for the pricing model and the tier ↔ Lemon Squeezy
-// variant mapping. The desktop backend owns *tier delivery*; this module owns the
-// *commerce-side* mapping between a chosen plan and an LS variant, and back from a
+// Pricing *logic* and the tier ↔ Lemon Squeezy variant mapping. The plan *data*
+// (plans, seats, prices) lives in `config/plans.ts`; this module owns the
+// commerce-side mapping between a chosen plan and an LS variant, and back from a
 // purchased variant to the tier we must write into `entitlements`.
 
-export type Tier = "free" | "pro" | "studio";
-export type PaidTier = "pro" | "studio";
-export type Period = "monthly" | "yearly";
+import { PLANS, PAID_TIERS, type Tier, type PaidTier, type Period, type PlanPricing } from "@/config/plans";
 
-export interface PlanPricing {
-  monthly: number; // USD per month
-  yearly: number; // USD per year
-}
-
-export interface Plan {
-  tier: Tier;
-  /** Device-seat limit. `null` = uncapped (Free). Mirrors backend SEAT_LIMITS. */
-  seats: number | null;
-  /** Paid plans have pricing; Free does not. */
-  pricing?: PlanPricing;
-  popular?: boolean;
-}
-
-// Concrete pricing from the plan. Keep in sync with the LS product variants.
-export const PLANS: Record<Tier, Plan> = {
-  free: { tier: "free", seats: null },
-  pro: { tier: "pro", seats: 1, popular: true, pricing: { monthly: 15, yearly: 150 } },
-  studio: { tier: "studio", seats: 5, pricing: { monthly: 45, yearly: 450 } },
-};
-
-export const PAID_TIERS: PaidTier[] = ["pro", "studio"];
+// Re-export the config so existing `@/lib/pricing` imports keep working.
+export { PLANS, PAID_TIERS };
+export type { Tier, PaidTier, Period, PlanPricing, Plan } from "@/config/plans";
 
 /** Effective monthly cost for a period (annual amortized over 12 months). */
 export function monthlyEquivalent(p: PlanPricing, period: Period): number {
@@ -75,20 +54,8 @@ export function tierForVariant(
   return buildVariantMap(env).get(String(variantId)) ?? null;
 }
 
-/**
- * Resolve the tier to *display* from an `entitlements` row. Both `/account` and
- * `/pricing` read the same row, so they must resolve it identically — otherwise one
- * page can show Free while the other implies a paid plan. Applies the `expires_at`
- * grace: a row past its expiry reads as Free even if `tier` still says otherwise.
- */
-export function effectiveTier(
-  ent: { tier?: string | null; expires_at?: string | null } | null | undefined,
-  now: Date = new Date(),
-): Tier {
-  if (!ent?.tier) return "free";
-  if (ent.expires_at && new Date(ent.expires_at) < now) return "free";
-  return ent.tier as Tier;
-}
+// The effective-tier grace (applying expires_at) now lives in the SQL view
+// `account_overview` (migration 0002) — pages read its `effective_tier` column.
 
 /** Lemon Squeezy subscription statuses that should grant the paid tier. */
 const ACTIVE_STATUSES = new Set(["active", "on_trial", "past_due", "cancelled"]);

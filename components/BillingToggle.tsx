@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/cn";
 import { dictionary as t } from "@/dictionaries/en";
-import type { Period } from "@/lib/pricing";
+import { PLANS, annualSavingPercent, type Period } from "@/lib/pricing";
 
 export function BillingToggle({
   period,
@@ -30,7 +30,7 @@ export function BillingToggle({
         ))}
       </div>
       <span className="rounded-full bg-emerald-400/15 px-2.5 py-1 text-xs font-semibold text-emerald-300">
-        {t.pricing.yearlyBadge}
+        {t.pricing.yearlyBadge.replace("{percent}", String(annualSavingPercent(PLANS.pro.pricing!)))}
       </span>
     </div>
   );

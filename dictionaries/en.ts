@@ -83,7 +83,7 @@ export const en = {
       "Start free. Upgrade when you're ready to drop the watermark. Cancel anytime — access lasts until the end of your billing period.",
     monthly: "Monthly",
     yearly: "Yearly",
-    yearlyBadge: "Save 17%",
+    yearlyBadge: "Save {percent}%",
     perMonth: "/mo",
     perYear: "/yr",
     billedYearly: "billed yearly",
@@ -102,7 +102,6 @@ export const en = {
         features: [
           "Full batch framing & export",
           "All canvas & frame presets",
-          "Unlimited devices",
           "Watermarked output",
         ],
       },
@@ -113,7 +112,6 @@ export const en = {
         features: [
           "Everything in Free",
           "No watermark",
-          "1 device seat",
           "14-day offline grace",
         ],
       },
@@ -123,7 +121,6 @@ export const en = {
         cta: "Get Studio",
         features: [
           "Everything in Pro",
-          "5 device seats",
           "Priority email support",
         ],
       },

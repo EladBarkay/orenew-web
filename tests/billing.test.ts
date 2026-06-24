@@ -50,55 +50,36 @@ describe("isHandledEvent", () => {
 
 describe("planMutation", () => {
   it("plans an active Pro-yearly purchase", () => {
-    const plan = planMutation(event({}), { env, now: NOW });
-    expect(plan.entitlement).toEqual({
+    const ent = planMutation(event({}), { env, now: NOW });
+    expect(ent).toEqual({
       user_id: "user-1",
       tier: "pro",
       expires_at: null,
       updated_at: NOW.toISOString(),
-    });
-    expect(plan.subscription).toMatchObject({
-      user_id: "user-1",
-      ls_customer_id: "42",
-      ls_subscription_id: "sub-1",
-      ls_variant_id: "222",
-      tier: "pro",
-      status: "active",
-      current_period_end: "2027-06-20",
     });
   });
 
   it("grants Pro with no expiry during a trial", () => {
     // on_trial: full paid access, no expires_at — LS will send the convert/cancel
     // event later to flip it. This is the 14-day-trial money path.
-    const plan = planMutation(event({ variant: 111, status: "on_trial" }), { env, now: NOW });
-    expect(plan.entitlement.tier).toBe("pro");
-    expect(plan.entitlement.expires_at).toBeNull();
-    expect(plan.subscription.status).toBe("on_trial");
+    const ent = planMutation(event({ variant: 111, status: "on_trial" }), { env, now: NOW });
+    expect(ent.tier).toBe("pro");
+    expect(ent.expires_at).toBeNull();
   });
 
   it("keeps tier but sets grace expiry on cancel", () => {
-    const plan = planMutation(
+    const ent = planMutation(
       event({ eventName: "subscription_cancelled", status: "cancelled", ends_at: "2026-07-01T00:00:00Z" }),
       { env, now: NOW },
     );
-    expect(plan.entitlement.tier).toBe("pro");
-    expect(plan.entitlement.expires_at).toBe("2026-07-01");
+    expect(ent.tier).toBe("pro");
+    expect(ent.expires_at).toBe("2026-07-01");
   });
 
   it("drops to free when expired", () => {
-    const plan = planMutation(event({ status: "expired" }), { env, now: NOW });
-    expect(plan.entitlement.tier).toBe("free");
-    expect(plan.entitlement.expires_at).toBeNull();
-  });
-
-  it("uses the fallback user id when custom_data is absent", () => {
-    const plan = planMutation(event({ userId: null }), {
-      env,
-      now: NOW,
-      fallbackUserId: "recovered-user",
-    });
-    expect(plan.entitlement.user_id).toBe("recovered-user");
+    const ent = planMutation(event({ status: "expired" }), { env, now: NOW });
+    expect(ent.tier).toBe("free");
+    expect(ent.expires_at).toBeNull();
   });
 
   it("rejects a missing user id", () => {
@@ -110,7 +91,7 @@ describe("planMutation", () => {
   });
 
   it("maps studio monthly", () => {
-    const plan = planMutation(event({ variant: 333 }), { env, now: NOW });
-    expect(plan.subscription.tier).toBe("studio");
+    const ent = planMutation(event({ variant: 333 }), { env, now: NOW });
+    expect(ent.tier).toBe("studio");
   });
 });

@@ -1,24 +1,33 @@
-// Thin Lemon Squeezy wrapper (server-only). We hit the JSON:API directly rather
-// than pull in the SDK, keeping the surface to exactly what we need: create a
-// checkout that carries the buyer's Supabase user_id, fetch a subscription's
-// hosted customer-portal URL, and verify webhook signatures.
+// Lemon Squeezy access (server-only). We use the official SDK
+// (@lemonsqueezy/lemonsqueezy.js) for the API calls — checkout creation and
+// subscription reads — and keep two pure helpers the SDK does not cover:
+// `verifyWebhookSignature` (LS ships no webhook-verify helper; you must HMAC the
+// raw body yourself) and `periodEndDate` (entitlement-expiry date parsing).
 
 import crypto from "node:crypto";
+import {
+  createCheckout,
+  lemonSqueezySetup,
+  listSubscriptions,
+  type ListSubscriptions,
+} from "@lemonsqueezy/lemonsqueezy.js";
 
-const API = "https://api.lemonsqueezy.com/v1";
+/** A subscription as the SDK returns it in a list (the element of `data`). */
+export type LsSubscription = ListSubscriptions["data"][number];
 
-function apiKey(): string {
-  const k = process.env.LEMONSQUEEZY_API_KEY;
-  if (!k) throw new Error("LEMONSQUEEZY_API_KEY is not set");
-  return k;
+let configured = false;
+function setup() {
+  if (configured) return;
+  const apiKey = process.env.LEMONSQUEEZY_API_KEY;
+  if (!apiKey) throw new Error("LEMONSQUEEZY_API_KEY is not set");
+  lemonSqueezySetup({ apiKey });
+  configured = true;
 }
 
-function headers() {
-  return {
-    Accept: "application/vnd.api+json",
-    "Content-Type": "application/vnd.api+json",
-    Authorization: `Bearer ${apiKey()}`,
-  };
+function storeId(): string {
+  const id = process.env.LEMONSQUEEZY_STORE_ID;
+  if (!id) throw new Error("LEMONSQUEEZY_STORE_ID is not set");
+  return id;
 }
 
 export interface CreateCheckoutArgs {
@@ -32,58 +41,63 @@ export interface CreateCheckoutArgs {
 
 /** Create a hosted checkout and return its URL. */
 export async function createCheckoutUrl(args: CreateCheckoutArgs): Promise<string> {
-  const storeId = process.env.LEMONSQUEEZY_STORE_ID;
-  if (!storeId) throw new Error("LEMONSQUEEZY_STORE_ID is not set");
-
-  const body = {
-    data: {
-      type: "checkouts",
-      attributes: {
-        checkout_data: {
-          email: args.email,
-          // custom data is echoed back verbatim in webhook meta.custom_data.
-          custom: { user_id: args.userId },
-        },
-        product_options: {
-          redirect_url: args.redirectUrl,
-          // One subscription per buyer per tier — let LS manage the rest in-portal.
-          enabled_variants: [Number(args.variantId)],
-        },
-      },
-      relationships: {
-        store: { data: { type: "stores", id: String(storeId) } },
-        variant: { data: { type: "variants", id: String(args.variantId) } },
-      },
+  setup();
+  const { data, error } = await createCheckout(storeId(), args.variantId, {
+    checkoutData: {
+      email: args.email,
+      // custom data is echoed back verbatim in webhook meta.custom_data.
+      custom: { user_id: args.userId },
     },
-  };
-
-  const res = await fetch(`${API}/checkouts`, {
-    method: "POST",
-    headers: headers(),
-    body: JSON.stringify(body),
+    productOptions: {
+      redirectUrl: args.redirectUrl,
+      // One subscription per buyer per tier — let LS manage the rest in-portal.
+      enabledVariants: [Number(args.variantId)],
+    },
   });
-  if (!res.ok) {
-    throw new Error(`LS create checkout failed: ${res.status} ${await res.text()}`);
-  }
-  const json = await res.json();
-  const url = json?.data?.attributes?.url;
+  if (error) throw new Error(`LS create checkout failed: ${error.message}`);
+  const url = data?.data.attributes.url;
   if (!url) throw new Error("LS checkout response missing url");
-  return url as string;
+  return url;
 }
 
-/** Fetch the hosted customer-portal URL for an existing subscription. */
-export async function getCustomerPortalUrl(subscriptionId: string): Promise<string | null> {
-  const res = await fetch(`${API}/subscriptions/${subscriptionId}`, {
-    headers: headers(),
+/**
+ * Most-recent subscription for an email (or null). Source of truth for /account
+ * and /portal. LS already returns the list ordered by `created_at` descending.
+ */
+export async function getLatestSubscriptionByEmail(
+  email: string,
+): Promise<LsSubscription | null> {
+  setup();
+  const { data, error } = await listSubscriptions({
+    filter: { storeId: storeId(), userEmail: email },
   });
-  if (!res.ok) return null;
-  const json = await res.json();
-  return json?.data?.attributes?.urls?.customer_portal ?? null;
+  if (error) return null;
+  return data?.data[0] ?? null;
+}
+
+/** Every subscription in the store (all statuses), following pagination. For /admin. */
+export async function listStoreSubscriptions(): Promise<LsSubscription[]> {
+  setup();
+  const out: LsSubscription[] = [];
+  let page = 1;
+  for (;;) {
+    const { data, error } = await listSubscriptions({
+      filter: { storeId: storeId() },
+      page: { number: page, size: 100 },
+    });
+    if (error) throw new Error(`LS list subscriptions failed: ${error.message}`);
+    if (!data) break;
+    out.push(...data.data);
+    if (page >= data.meta.page.lastPage) break;
+    page += 1;
+  }
+  return out;
 }
 
 /**
  * Verify a Lemon Squeezy webhook signature (HMAC-SHA256 of the raw body, hex).
- * Use a constant-time compare. `raw` must be the exact bytes received.
+ * Use a constant-time compare. `raw` must be the exact bytes received. The SDK
+ * provides no webhook verification, so this stays hand-rolled.
  */
 export function verifyWebhookSignature(
   raw: string,
@@ -119,8 +133,14 @@ export interface LsWebhookEvent {
   };
 }
 
-/** Parse the renewal/end date relevant to entitlement expiry, as an ISO date. */
-export function periodEndDate(attrs: LsWebhookEvent["data"]["attributes"]): string | null {
+/**
+ * Parse the renewal/end date relevant to entitlement expiry, as an ISO date.
+ * Accepts any subscription-attributes shape (webhook payload or SDK object).
+ */
+export function periodEndDate(attrs: {
+  ends_at?: string | null;
+  renews_at?: string | null;
+}): string | null {
   // On cancel LS sets ends_at (period end). While active, renews_at is the next
   // charge date. Prefer ends_at when present so cancellations grant grace.
   const raw = attrs.ends_at ?? attrs.renews_at ?? null;

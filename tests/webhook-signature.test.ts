@@ -37,10 +37,6 @@ describe("periodEndDate", () => {
   it("prefers ends_at (cancellation grace) over renews_at", () => {
     expect(
       periodEndDate({
-        store_id: 1,
-        customer_id: 1,
-        variant_id: 1,
-        status: "cancelled",
         renews_at: "2027-01-01T00:00:00Z",
         ends_at: "2026-07-01T00:00:00Z",
       }),
@@ -50,10 +46,6 @@ describe("periodEndDate", () => {
   it("uses renews_at while active", () => {
     expect(
       periodEndDate({
-        store_id: 1,
-        customer_id: 1,
-        variant_id: 1,
-        status: "active",
         renews_at: "2027-01-01T00:00:00Z",
         ends_at: null,
       }),
@@ -61,8 +53,6 @@ describe("periodEndDate", () => {
   });
 
   it("returns null when neither is set", () => {
-    expect(
-      periodEndDate({ store_id: 1, customer_id: 1, variant_id: 1, status: "active" }),
-    ).toBeNull();
+    expect(periodEndDate({})).toBeNull();
   });
 });

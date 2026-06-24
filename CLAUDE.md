@@ -40,8 +40,9 @@ execute it.** The split exists so the money path is unit-testable without a DB. 
 - `lib/pricing.ts` — single source of truth for plans, seat limits, and the
   tier↔LS-variant mapping. `PLANS`, `tierForVariant`, `resolveEntitlementTier`.
 - `lib/billing.ts` — pure `planMutation(event)` → the rows to write. No DB calls.
-- `lib/lemonsqueezy.ts` — thin LS JSON:API wrapper (no SDK): create checkout, portal
-  URL, `verifyWebhookSignature` (HMAC-SHA256, constant-time).
+- `lib/lemonsqueezy.ts` — LS access via the official SDK (`@lemonsqueezy/lemonsqueezy.js`):
+  create checkout, read subscriptions. Plus two helpers the SDK lacks:
+  `verifyWebhookSignature` (HMAC-SHA256, constant-time) and `periodEndDate`.
 - `lib/os-detect.ts` — pure UA→OS + GitHub-release asset picker for /download.
 - `lib/supabase/` — `client` (browser), `server` (RLS, request cookies), `middleware`
   (session refresh + route gating), `service` (**service-role, bypasses RLS, server-only**).
@@ -60,9 +61,9 @@ execute it.** The split exists so the money path is unit-testable without a DB. 
 
 1. Buyer signs in → `POST /api/checkout` builds an LS checkout carrying their Supabase
    `user_id` as `custom_data`.
-2. LS webhook → verify signature → map variant→tier → upsert `billing_subscriptions`
-   (idempotent on `ls_subscription_id`) → write `entitlements.tier` + `expires_at` via
-   service role.
+2. LS webhook → verify signature → map variant→tier → write `entitlements.tier` +
+   `expires_at` via service role. LS is the source of truth for subscription state; we
+   keep no local mapping table. `user_id` rides in `custom_data` on every event.
 3. Desktop refresh loop re-mints its device-bound token from the updated row. No
    license keys, no desktop code change.
 4. Cancel → `expires_at` = period end (grace); tier holds until then, then drops to Free.
@@ -80,11 +81,14 @@ Gated (`/account`, `/admin` — enforced in `lib/supabase/middleware.ts`): `/acc
 
 ## Database
 
-`supabase/migrations/0001_billing_and_admin.sql` runs against the shared project. Adds
-`public.billing_subscriptions` (user reads own; **only service role writes**) and
-`entitlements.is_admin` + admin read RLS. Reuses existing `entitlements` /
-`entitlement_devices` (defined in the desktop repo). Grant admin via service role:
-`update public.entitlements set is_admin = true where user_id = '<uuid>';`
+`supabase/migrations/0001_billing_and_admin.sql` runs against the shared project. It
+added `entitlements.is_admin` + admin read RLS, and originally a
+`public.billing_subscriptions` mapping table. **That table is being decommissioned** —
+LS is now the source of truth for subscription state (`/account`, `/portal`, `/admin` read
+the LS API live via `lib/lemonsqueezy.ts`; the webhook no longer writes it). The table is
+left in place (no longer read or written) until it's confirmed dead, then dropped manually.
+Reuses existing `entitlements` / `entitlement_devices` (defined in the desktop repo). Grant
+admin via service role: `update public.entitlements set is_admin = true where user_id = '<uuid>';`
 
 ## Conventions
 
